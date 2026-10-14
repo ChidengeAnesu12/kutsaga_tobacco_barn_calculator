@@ -5,7 +5,10 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const TobaccoBarnCalculatorApp());
 }
 
@@ -15,7 +18,8 @@ class TobaccoBarnCalculatorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kutsaga Tobacco Barn Calculator',
+      title:
+          'Tobacco Barn Analyser - Tobacco Barn Engineering and Optimisation Tool',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: const SplashScreen(),

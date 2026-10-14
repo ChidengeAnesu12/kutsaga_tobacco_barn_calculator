@@ -1,5 +1,5 @@
 name: tobacco_barn_calculator
-description: "Kutsaga Tobacco Barn Calculator — offline capacity and engineering tool."
+description: "Tobacco Barn Analyser - Tobacco Barn Engineering and Optimisation Tool."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -26,6 +26,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/barns/
+    - assets/plans/
 
   fonts:
     - family: OpenSans

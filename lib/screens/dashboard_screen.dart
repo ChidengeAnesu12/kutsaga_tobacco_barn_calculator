@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
 
 import '../calculations/barn_calculator.dart';
 import '../core/theme/app_colors.dart';
@@ -9,6 +8,7 @@ import '../models/saved_barn_record.dart';
 import '../reports/barn_report_generator.dart';
 import '../widgets/app_header.dart';
 import '../widgets/responsive_body.dart';
+import 'pdf_preview_screen.dart';
 import 'results_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -21,7 +21,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _repository = BarnHistoryRepository();
   late Future<List<SavedBarnRecord>> _future;
-  String? _exportingRecordId;
 
   @override
   void initState() {
@@ -32,22 +31,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _reviewRecord(SavedBarnRecord record) async {
     final result = const BarnCalculator().calculate(record.input);
     if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResultsScreen(result: result, ownerInfo: record.ownerInfo)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ResultsScreen(result: result, ownerInfo: record.ownerInfo),
+      ),
+    );
   }
 
-  Future<void> _redownloadPdf(SavedBarnRecord record) async {
-    setState(() => _exportingRecordId = record.id);
-    try {
-      final result = const BarnCalculator().calculate(record.input);
-      final bytes = await const BarnReportGenerator().generate(result, record.ownerInfo);
-      if (!mounted) return;
-      await Printing.layoutPdf(
-        onLayout: (format) async => bytes,
-        name: 'kutsaga_${sanitizeForFilename(record.ownerInfo.ownerName)}_${record.label.toLowerCase()}_barn_report.pdf',
-      );
-    } finally {
-      if (mounted) setState(() => _exportingRecordId = null);
-    }
+  void _openPdfPreview(SavedBarnRecord record) {
+    final result = const BarnCalculator().calculate(record.input);
+    final fileName =
+        'kutsaga_${sanitizeForFilename(record.ownerInfo.ownerName)}_${sanitizeForFilename(record.label.toLowerCase())}_barn_report.pdf';
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PdfPreviewScreen(
+          title: 'Barn Report',
+          fileName: fileName,
+          loadBytes: () =>
+              const BarnReportGenerator().generate(result, record.ownerInfo),
+        ),
+      ),
+    );
   }
 
   @override
@@ -57,7 +63,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: ResponsiveBody(
           child: RefreshIndicator(
-            onRefresh: () async => setState(() => _future = _repository.loadAll()),
+            onRefresh: () async =>
+                setState(() => _future = _repository.loadAll()),
             child: FutureBuilder<List<SavedBarnRecord>>(
               future: _future,
               builder: (context, snapshot) {
@@ -70,7 +77,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     padding: const EdgeInsets.all(20),
                     children: const [
                       SizedBox(height: 80),
-                      Icon(Icons.inventory_2_outlined, size: 48, color: Colors.black26),
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 48,
+                        color: Colors.black26,
+                      ),
                       SizedBox(height: 12),
                       Text(
                         'No saved calculations yet. Every barn you calculate is saved here automatically.',
@@ -86,9 +97,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) => _HistoryTile(
                     record: records[index],
-                    isExporting: _exportingRecordId == records[index].id,
                     onTap: () => _reviewRecord(records[index]),
-                    onExport: () => _redownloadPdf(records[index]),
+                    onExport: () => _openPdfPreview(records[index]),
                   ),
                 );
               },
@@ -101,10 +111,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.record, required this.isExporting, required this.onTap, required this.onExport});
+  const _HistoryTile({
+    required this.record,
+    required this.onTap,
+    required this.onExport,
+  });
 
   final SavedBarnRecord record;
-  final bool isExporting;
   final VoidCallback onTap;
   final VoidCallback onExport;
 
@@ -112,25 +125,39 @@ class _HistoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final i = record.input;
     final d = record.savedAt;
-    final dateLabel = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final dateLabel =
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
     return Card(
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading: CircleAvatar(
-          backgroundColor: AppColors.deepBlue.withOpacity(0.1),
-          child: Text('${record.sequenceNumber}', style: const TextStyle(color: AppColors.deepBlue, fontWeight: FontWeight.bold)),
+          backgroundColor: AppColors.deepBlue.withValues(alpha: 0.1),
+          child: Text(
+            '${record.sequenceNumber}',
+            style: const TextStyle(
+              color: AppColors.deepBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
-        title: Text(record.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          record.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
           '${record.ownerInfo.ownerName.isNotEmpty ? '${record.ownerInfo.ownerName} · ' : ''}${i.lengthMm.toStringAsFixed(0)}×${i.widthMm.toStringAsFixed(0)}×${i.heightMm.toStringAsFixed(0)} mm  ·  $dateLabel',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: isExporting
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-            : IconButton(icon: const Icon(Icons.picture_as_pdf, color: AppColors.deepBlue), tooltip: 'Export PDF', onPressed: onExport),
+        trailing: IconButton(
+          icon: const Icon(Icons.picture_as_pdf, color: AppColors.deepBlue),
+          tooltip: 'Open PDF report',
+          onPressed: onExport,
+        ),
       ),
     );
   }
